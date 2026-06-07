@@ -1,0 +1,59 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            command: npm run build && npx electron-builder --mac --x64 --arm64 --publish never
+            artifact: piclean-macos
+          - name: Windows
+            os: windows-latest
+            command: npm run build && npx electron-builder --win --x64 --publish never
+            artifact: piclean-windows
+          - name: Linux
+            os: ubuntu-latest
+            command: npm run build && npx electron-builder --linux --x64 --publish never
+            artifact: piclean-linux
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Package
+        run: ${{ matrix.command }}
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            release/*
+            !release/*.blockmap
+            !release/**/*.blockmap
+            !release/builder-debug.yml
+            !release/builder-effective-config.yaml
